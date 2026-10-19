@@ -29,8 +29,9 @@ interface IDeezHarvester {
 ///   - `weightOf(account, e)` is the account's average $DEEZ balance over the epoch, from the token's own
 ///     balance history: a wallet that held 100 $DEEZ all day weighs 100; one that held 100 for the last block
 ///     weighs 100 / 7200.
-///   - `eligibleSupplyAt(e)` = the average total supply over the epoch minus the average balances of the four
-///     excluded addresses: the PoolManager (the pool's liquidity), the burn address, the hook and this contract.
+///   - `eligibleSupplyAt(e)` = the average total supply over the epoch minus the average balances of the five
+///     excluded addresses: the PoolManager (the pool's liquidity), the burn address, the hook, this contract and
+///     the launcher (which holds the whole supply between the factory transaction and `launch`).
 ///   - `claimable(account, e)` = `pots[e].total * weightOf(account, e) / eligibleSupplyAt(e)`, minus what the
 ///     account was already paid for `e`. A pot can still grow after a claim (fees traded late in the day are
 ///     only credited when harvested), so `claim` first harvests the epochs it pays through the hook, and a
@@ -72,7 +73,8 @@ contract DeezRewards is ReentrancyGuard {
     IERC20 public immutable rewardToken;
     /// @notice The Uniswap v4 PoolManager: it holds the pool's $DEEZ, so it is excluded.
     address public immutable poolManager;
-    /// @notice The `DeezLaunch` contract, the only caller of `setHook`.
+    /// @notice The `DeezLaunch` contract, the only caller of `setHook`; excluded from rewards, since it holds the
+    /// whole supply until it launches and has no way to claim.
     address public immutable launcher;
 
     /// @notice The fee hook that feeds this contract; excluded as well, and the only caller of `credit`.
@@ -150,10 +152,12 @@ contract DeezRewards is ReentrancyGuard {
         return block.timestamp > snapshotOf(epoch);
     }
 
-    /// @notice Addresses that hold $DEEZ but never earn: the pool, the burn address, the hook and this contract.
+    /// @notice Addresses that hold $DEEZ but never earn: the pool, the burn address, the hook, this contract and
+    /// the launcher. The launcher holds the whole supply from the factory transaction until `launch`; counting
+    /// that holding would owe most of the launch day's pot to a contract that cannot claim.
     function isExcluded(address account) public view returns (bool) {
         return account == poolManager || account == BURN_ADDRESS || account == hook || account == address(this)
-            || account == address(0);
+            || account == launcher || account == address(0);
     }
 
     /// @notice The average $DEEZ balance `account` held over `epoch`, in wei (reverts until the epoch ended).
@@ -168,7 +172,7 @@ contract DeezRewards is ReentrancyGuard {
         uint256 start = epoch * EPOCH_LENGTH;
         uint256 total = token.getCumulativeTotalSupply(start + EPOCH_LENGTH) - token.getCumulativeTotalSupply(start);
         uint256 excluded = weightOf(poolManager, epoch) + weightOf(BURN_ADDRESS, epoch) + weightOf(hook, epoch)
-            + weightOf(address(this), epoch);
+            + weightOf(address(this), epoch) + weightOf(launcher, epoch);
         return total > excluded ? total - excluded : 0;
     }
 

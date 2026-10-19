@@ -29,8 +29,12 @@ import {DeezLiquidityLock} from "./DeezLiquidityLock.sol";
 ///   6. transfers the rest of the 2% (10,000,000 $DEEZ) to the requester wallet.
 /// Only the requester may call `launch`: the hook, pool, lock positions and payout are fixed by this contract,
 /// so the requester chooses nothing but the moment and the mined salt. The contracts the requester passes are
-/// checked to be the ones deployed for this launcher (they all name it, and the token's supply sits here).
-/// No owner, no admin function, nothing to change after launch.
+/// checked to be consistent with this launcher (they all name it, they name each other, and the token's whole
+/// supply sits here); a wrong or foreign address reverts. That is consistency, not provenance: a contract has no
+/// way to tell the factory's `DeezToken` from a look-alike the requester deploys (its runtime embeds immutables,
+/// so no code hash can be pinned here), so whoever publishes the launch must read `token()`, `rewards()` and
+/// `liquidityLock()` from this contract after `launch` and compare them with the factory's record before
+/// filling the site. No owner, no admin function, nothing to change after launch.
 contract DeezLaunch {
     using SafeERC20 for IERC20;
 
@@ -175,9 +179,10 @@ contract DeezLaunch {
         return uint160(Math.sqrt(ratioX192));
     }
 
-    /// @dev The three contracts must be the ones deployed for this launcher: each names it, the distributor is
-    /// built on the same token, pair currency and PoolManager, the lock on the distributor, and the token's whole
-    /// supply sits here.
+    /// @dev The three contracts must be consistent with this launcher: each names it, the distributor is built on
+    /// the same token, pair currency and PoolManager, the lock on the distributor, and the token's whole supply
+    /// sits here. Only values the passed contracts report about themselves can be read, so a complete look-alike
+    /// set built by the requester passes; see the contract notice for the publisher's cross-check.
     function _check(address token_, address rewards_, address liquidityLock_) private view {
         if (token_ == address(0) || rewards_ == address(0) || liquidityLock_ == address(0)) revert ZeroAddress();
         if (token_ == pairedCurrency) revert SameCurrency();

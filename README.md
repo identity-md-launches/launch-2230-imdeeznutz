@@ -49,11 +49,16 @@ launch(address token, address rewards, address liquidityLock, bytes32 hookSalt) 
 
 Caller: the requester only. Once. Steps, in order:
 
-1. Checks the three addresses are the contracts deployed for this launcher: `token.launcher()`,
-   `rewards.launcher()` equal the launcher; `rewards.token()`, `rewards.rewardToken()`, `rewards.poolManager()`
-   match; `rewards.hook()` is still zero; `liquidityLock.poolManager()` and `liquidityLock.rewards()` match; and
-   the launcher holds the whole 1,000,000,000 $DEEZ. A wrong or impostor address reverts
-   (`WrongToken`, `WrongRewards`, `WrongLiquidityLock`, `SupplyNotHere`).
+1. Checks the three addresses are consistent with this launcher: `token.launcher()`, `rewards.launcher()` equal
+   the launcher; `rewards.token()`, `rewards.rewardToken()`, `rewards.poolManager()` match; `rewards.hook()` is
+   still zero; `liquidityLock.poolManager()` and `liquidityLock.rewards()` match; and the launcher holds the
+   whole 1,000,000,000 $DEEZ. A wrong, foreign or mismatched address reverts (`WrongToken`, `WrongRewards`,
+   `WrongLiquidityLock`, `SupplyNotHere`). This is a consistency check, not a proof of provenance: the launcher
+   can only read what the passed contracts say about themselves, and `DeezToken`'s runtime embeds immutables, so
+   no code hash can be pinned. A complete look-alike set the requester deploys (a token naming the launcher with
+   1e27 minted to it, a distributor on that token, a lock on that distributor) would pass and launch under the
+   launcher's address, stranding the factory's `DeezToken` in the launcher. Only the requester can do this, and
+   only to their own launch, so it is a trust assumption; the publisher's cross-check below is the guard.
 2. Deploys `DeezHook(poolManager, token, IMD, rewards, liquidityLock)` with CREATE2 and `hookSalt`. The hook's
    constructor validates that its address carries exactly `beforeInitialize | beforeSwap | afterSwap |
    beforeSwapReturnDelta | afterSwapReturnDelta` (`0x20CC`), so a wrong salt reverts the whole launch
@@ -95,7 +100,7 @@ on `hookAddress`. Nothing is broadcast.
 | Who            | What                                                                                                     |
 |----------------|----------------------------------------------------------------------------------------------------------|
 | Requester      | Mine `hookSalt` (above), then send `DeezLaunch.launch(token, rewards, liquidityLock, hookSalt)` from `0xb04548fac7e1505c7c0179d2af59f76c3018d003`. Gas: roughly 3.5M (hook deployment, pool initialization, two liquidity adds). Until this is sent, nothing trades and the supply sits in the launcher. |
-| Requester      | Publish the addresses: fill `site/deez.config.js` with the factory's record (`token`, `launcher`, `rewards`, `liquidityLock`, `deployTx`) and the launch transaction's results (`hook` = `DeezLaunch.hook()`, `poolId` = `DeezLaunch.poolId()`, `launchTx`). Never invent an address: a blank field shows "announced at launch". |
+| Requester      | Publish the addresses: fill `site/deez.config.js` with the factory's record (`token`, `launcher`, `rewards`, `liquidityLock`, `deployTx`) and the launch transaction's results (`hook` = `DeezLaunch.hook()`, `poolId` = `DeezLaunch.poolId()`, `launchTx`). **Required cross-check before publishing:** read `DeezLaunch.token()`, `rewards()` and `liquidityLock()` after the launch transaction and confirm each equals the factory's recorded address for `DeezToken`, `DeezRewards` and `DeezLiquidityLock`; publish nothing if any differs (see step 1 above). Never invent an address: a blank field shows "announced at launch". |
 | Anyone         | `DeezHook.harvest()` moves the fees of the current and previous day into `DeezRewards`; `DeezRewards.claim` does it for the epochs it pays, so this is a convenience, not a duty. |
 | Holders        | `DeezRewards.claim(account, epochs)` from the account itself, within 90 epochs; `recycle(epoch)` (anyone) folds what was never claimed into the current pot afterwards. |
 | Anyone         | Send $DEEZ and/or $IMD to `DeezLiquidityLock` and call `lock()` or `lockAs(...)` to add permanent liquidity. There is no way back out. |
@@ -103,6 +108,19 @@ on `hookAddress`. Nothing is broadcast.
 
 There is no owner-settable value: every outside contract (PoolManager, $IMD) is a constructor argument with a
 mainnet value given above, and every number is a constant.
+
+### Assumption: "the same transaction as deployment" is the launch transaction
+
+The brief asks for the 10,000,000 $DEEZ to be locked "in the same transaction as deployment". In this launch mode
+the factory transaction only runs constructors (CREATE2, no follow-up call, rehearsed on an empty chain where a
+constructor that calls another contract reverts), and the hook needs a salt mined against the deployed
+addresses. Opening the pool and locking liquidity are calls into the PoolManager, so no constructor can do them.
+"Deployment" is therefore read as the launch transaction, `DeezLaunch.launch`: it deploys the hook, opens the
+pool, locks the 980,000,000 and the 10,000,000 $DEEZ and pays the other 10,000,000, atomically. After the
+factory transaction and before `launch`, nothing trades, the whole supply sits in the launcher and only the
+requester can release it; there is no moment at which the requester holds an unlocked 20,000,000 $DEEZ. If the
+requester meant the factory transaction literally, this launch mode cannot provide it and the brief would have
+to change (for example to a mode whose factory calls the contracts after deploying them).
 
 ## How it works
 
@@ -127,8 +145,13 @@ instead of deploying them, so the hook's init code is 9.9 KB and fits inside the
 ### The distributor (`DeezRewards`)
 
 Epochs are UTC days. `weightOf(account, epoch)` is the account's average balance over the epoch;
-`eligibleSupplyAt(epoch)` is the average supply minus the PoolManager, `0x…dEaD`, the hook and the distributor
-itself; `claimable = (pot + hook.pendingFeesOf(epoch)) × weight / eligibleSupply − paidOf`. `claim(account,
+`eligibleSupplyAt(epoch)` is the average supply minus the PoolManager, `0x…dEaD`, the hook, the distributor
+itself and the launcher (`isExcluded` lists the same five); `claimable = (pot + hook.pendingFeesOf(epoch)) ×
+weight / eligibleSupply − paidOf`. The launcher is excluded because it holds the whole supply from the factory
+transaction until `launch`, normally hours later on the same UTC day, and has no way to claim: counted, its
+average balance would dwarf every real holder's on launch day and most of that day's pot would sit unclaimable
+until recycled 91 days later. `DeezLiquidityLock` is not excluded: it keeps only the 1 ppm shave (about 1,000
+$DEEZ) and that dust share is recycled like any other unclaimed one. `claim(account,
 epochs)` is callable only by the account itself, harvests the listed epochs through the hook first, and reverts
 when the batch pays nothing. `recycle(epoch)` folds what was not claimed within `CLAIM_WINDOW` = 90 epochs into
 the current pot. New: `hook` is storage set once by the launcher through `setHook` (emits `HookSet`); before
@@ -176,7 +199,11 @@ are the only place to change.
   and receives 10,000,000 $DEEZ; it cannot change any parameter, and the launch's effects are fixed in code.
 - **Launch is requester-gated by design.** The three application addresses cannot be verified on chain beyond
   the checks in `_check` (an impostor can mimic view functions), so the one party who can read them from the
-  factory's record passes them. A fully permissionless `launch` would let a griefer launch an impostor set.
+  factory's record passes them. A fully permissionless `launch` would let a griefer launch an impostor set. The
+  requester could still launch a look-alike set and strand the factory's token; that hurts only their own launch,
+  and the publisher's cross-check of `DeezLaunch.token()` against the factory record (After launch) catches it.
+- **The launcher never earns.** `DeezRewards` excludes `launcher` from weights and eligible supply, so the hours
+  it holds the supply before `launch` cannot strand the launch day's fees.
 - **The hook's constructor makes no external call**; `Hooks.validateHookPermissions` is pure. A wrong salt
   reverts the whole launch transaction.
 - **Price limits.** The pool opens at the computed price with $DEEZ-only depth above it, so the first trade is a
@@ -184,7 +211,7 @@ are the only place to change.
 - **Rounding.** The lock's 1 ppm shave leaves a few hundred $DEEZ of the 990,000,000 in the lock (not in the
   requester's hands); anyone's later `lock()` folds them into the position.
 - **Tests are not an audit.** Work holding other people's funds needs an independent adversarial review before
-  release; this assignment ran `forge build`, `forge test` (187 tests, fuzz and invariant suites, seed
+  release; this assignment ran `forge build`, `forge test` (191 tests, fuzz and invariant suites, seed
   `0x29334e60…`) and `forge fmt --check`. Slither was not available on this machine; the table above records
   how each reported pattern was removed.
 
@@ -194,7 +221,9 @@ are the only place to change.
 launch deploys the hook where `hookAddress` predicted, with the flags; wires the distributor and lock; opens the
 pool at 2,500 $IMD for the supply (checked on both sides); locks 990,000,000 $DEEZ less the 1 ppm shave as a
 position the lock owns; pays the requester 10,000,000; emits the launch facts; trades afterwards with the 2% fee
-taken and harvested. Refusals: not the requester, a second launch, a salt without the flags (nothing left
+taken and harvested; and, launching at noon after a factory transaction the day before, lets the launch-day
+holders (requester, buyer, lock) claim at least 99% of the launch-day pot while the launcher's claim reverts
+`Excluded`. Refusals: not the requester, a second launch, a salt without the flags (nothing left
 behind), impostor token/distributor/lock, a distributor for another launcher, zero addresses and the pair
 currency, supply not in the launcher, `setHook` by anyone but the launcher or with a foreign hook, `lock`/`claim`
 before the hook is set, removing the locked liquidity from outside.
@@ -215,3 +244,7 @@ forge build && forge test && forge fmt --check
 - This launch (evm_contracts kind): `DeezLaunch` added; the 10,000,000 $DEEZ are locked in the launch
   transaction; the 98% is permanent locked liquidity; the hook takes its distributor and lock as arguments; the
   distributor's hook is set once by the launcher; static-analysis findings designed out.
+- Revision after independent review: `DeezRewards` excludes the launcher from reward weights and eligible
+  supply (its pre-launch holding of the whole supply had made most of the launch-day pot unclaimable); the
+  launcher's checks are documented as consistency checks and the publisher's cross-check against the factory
+  record is a required step; the reading of "the same transaction as deployment" is documented as an assumption.

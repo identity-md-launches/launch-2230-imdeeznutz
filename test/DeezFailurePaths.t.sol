@@ -97,7 +97,7 @@ contract DeezRewardsFailurePathsTest is Test {
     function test_excludedAddressesCannotClaimEvenForThemselves() public {
         fund(100 ether);
         nextEpoch();
-        address[4] memory excluded = [poolManager, rewards.BURN_ADDRESS(), hookAddr, address(rewards)];
+        address[5] memory excluded = [poolManager, rewards.BURN_ADDRESS(), hookAddr, address(rewards), address(this)];
         for (uint256 i = 0; i < excluded.length; i++) {
             vm.prank(excluded[i]);
             vm.expectRevert(abi.encodeWithSelector(DeezRewards.Excluded.selector, excluded[i]));

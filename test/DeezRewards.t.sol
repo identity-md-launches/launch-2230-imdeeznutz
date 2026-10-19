@@ -60,9 +60,10 @@ contract DeezRewardsTest is Test {
         return rewards.claim(account, epochs(e));
     }
 
+    /// @dev The supply that earns: everything but the five excluded holders (this test is the launcher).
     function eligible() internal view returns (uint256) {
         return SUPPLY - token.balanceOf(poolManager) - token.balanceOf(dead) - token.balanceOf(hook)
-            - token.balanceOf(address(rewards));
+            - token.balanceOf(address(rewards)) - token.balanceOf(address(this));
     }
 
     function test_constructorRefusesZeroAddresses() public {
@@ -89,6 +90,8 @@ contract DeezRewardsTest is Test {
         assertTrue(rewards.isExcluded(hook));
         assertTrue(rewards.isExcluded(dead));
         assertTrue(rewards.isExcluded(address(rewards)));
+        assertTrue(rewards.isExcluded(address(this)), "the launcher is excluded");
+        assertEq(rewards.launcher(), address(this));
         assertTrue(rewards.isExcluded(address(0)));
         assertFalse(rewards.isExcluded(alice));
     }
@@ -154,23 +157,26 @@ contract DeezRewardsTest is Test {
     }
 
     function test_rewardsAreWeightedByHoldingTime() public {
-        // alice holds 100 all day; bob buys 100 one second before the day ends and sells right after it.
+        // alice holds 100 all day; carol holds 100 until one second before the day ends, when bob buys it and
+        // sells it back right after the day ended.
         token.transfer(alice, 100 ether);
+        token.transfer(carol, 100 ether);
         token.transfer(poolManager, SUPPLY - 200 ether);
         fund(1_000 ether);
         vm.warp(101 * EPOCH - 1);
+        vm.prank(carol);
         token.transfer(bob, 100 ether);
         vm.warp(101 * EPOCH);
         vm.prank(bob);
-        token.transfer(address(this), 100 ether);
+        token.transfer(carol, 100 ether);
 
         uint256 aliceWeight = 100 ether;
         uint256 bobWeight = 100 ether * 1 / EPOCH; // one second of 86,400
         assertEq(rewards.weightOf(alice, 100), aliceWeight);
         assertEq(rewards.weightOf(bob, 100), bobWeight);
-        // The deployer held the other 100 for all but one second.
-        uint256 deployerWeight = 100 ether * (EPOCH - 1) / EPOCH;
-        assertEq(rewards.weightOf(address(this), 100), deployerWeight);
+        // carol held the other 100 for all but one second.
+        uint256 carolWeight = 100 ether * (EPOCH - 1) / EPOCH;
+        assertEq(rewards.weightOf(carol, 100), carolWeight);
         uint256 supply = rewards.eligibleSupplyAt(100);
         assertEq(supply, 200 ether);
 
@@ -180,14 +186,37 @@ contract DeezRewardsTest is Test {
         assertApproxEqAbs(imd.balanceOf(alice), 500 ether, 1, "the all-day holder earns its full half");
     }
 
-    function test_deployerShareIsProportionalToo() public {
-        // The deployer (standing in for whoever holds the rest of the supply) earns on its balance like anyone.
+    function test_launcherHoldingNeitherEarnsNorDilutes() public {
+        // The launcher (this test) keeps 250,000,000 all epoch, as `DeezLaunch` keeps the whole supply between
+        // the factory transaction and `launch`. It cannot claim, so its holding must not count: alice, the only
+        // eligible holder, gets the whole pot instead of half of it.
         token.transfer(alice, 250_000_000 ether);
         token.transfer(poolManager, 500_000_000 ether);
         fund(100 ether);
         vm.warp(101 * EPOCH);
-        assertEq(claimAs(alice, 100), 50 ether);
-        assertEq(claimAs(address(this), 100), 50 ether);
+        assertEq(rewards.weightOf(address(this), 100), 250_000_000 ether, "the launcher's weight is still readable");
+        assertEq(rewards.eligibleSupplyAt(100), 250_000_000 ether, "but it is not eligible supply");
+        assertEq(rewards.claimable(address(this), 100), 0);
+        assertEq(rewards.claimable(alice, 100), 100 ether);
+        vm.expectRevert(abi.encodeWithSelector(DeezRewards.Excluded.selector, address(this)));
+        rewards.claim(address(this), epochs(100));
+        assertEq(claimAs(alice, 100), 100 ether, "the whole pot goes to the holders who can claim");
+        assertEq(rewards.reserved(), 0, "nothing is left stranded for the launcher");
+    }
+
+    function test_launcherHoldingBeforeALateLaunchDoesNotDiluteTheLaunchDay() public {
+        // The factory transaction is at 01:00 of epoch 100 (`setUp` is at 00:00; the supply sits here either
+        // way) and the launch at 12:00: the launcher held everything for half the day, then alice (the only
+        // eligible holder) for the other half, so the day's pot is hers alone.
+        vm.warp(100 * EPOCH + 12 hours);
+        token.transfer(alice, 20_000_000 ether);
+        token.transfer(poolManager, SUPPLY - 20_000_000 ether);
+        creditAsHook(100, 2 ether);
+        vm.warp(101 * EPOCH + 1);
+        assertEq(rewards.weightOf(address(this), 100), SUPPLY / 2);
+        assertEq(rewards.eligibleSupplyAt(100), 10_000_000 ether, "alice's average: 20,000,000 for half a day");
+        assertEq(rewards.claimable(alice, 100), 2 ether);
+        assertEq(claimAs(alice, 100), 2 ether);
     }
 
     function test_balanceMovedAfterTheEpochDoesNotChangeIt() public {
@@ -338,6 +367,8 @@ contract DeezRewardsTest is Test {
         vm.prank(hook);
         vm.expectRevert(abi.encodeWithSelector(DeezRewards.Excluded.selector, hook));
         rewards.claim(hook, epochs(100));
+        vm.expectRevert(abi.encodeWithSelector(DeezRewards.Excluded.selector, address(this)));
+        rewards.claim(address(this), epochs(100)); // the launcher
     }
 
     function test_emptyClaimReverts() public {
@@ -436,14 +467,15 @@ contract DeezRewardsTest is Test {
         pot = uint96(bound(pot, 1 ether, 1e24));
         token.transfer(poolManager, SUPPLY - 3 * uint256(a));
         token.transfer(alice, a);
+        token.transfer(carol, a);
         fund(pot);
         vm.warp(100 * EPOCH + t1);
-        token.transfer(bob, a);
+        token.transfer(bob, a); // the launcher's last tokens leave mid-epoch
         vm.warp(100 * EPOCH + t2);
         vm.prank(alice);
         token.transfer(carol, a / 2);
         vm.warp(101 * EPOCH);
-        uint256 paid = claimAs(alice, 100) + claimAs(bob, 100) + claimAs(carol, 100) + claimAs(address(this), 100);
+        uint256 paid = claimAs(alice, 100) + claimAs(bob, 100) + claimAs(carol, 100);
         assertLe(paid, pot, "never pays more than the pot");
         // Each weight is floored to a wei-day per checkpoint segment; at pot / supply <= 1e6 that is < 1e7 wei.
         assertGe(paid + 1e7, pot, "at most rounding dust stays");

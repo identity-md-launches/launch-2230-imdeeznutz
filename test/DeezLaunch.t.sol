@@ -264,6 +264,45 @@ abstract contract DeezLaunchTests is Test {
         assertEq(imd.balanceOf(address(rewards)), harvested);
     }
 
+    function test_launchDayFeesGoToTheHoldersOfTheLaunchDay() public {
+        // The factory transaction was at `setUp`; the requester launches at noon of the next UTC day, so the
+        // launcher held the whole supply for half the launch day. Its holding earns nothing and dilutes nobody:
+        // the holders of the rest of the day can claim the whole launch-day pot.
+        uint256 epoch = block.timestamp / 1 days + 1;
+        vm.warp(epoch * 1 days + 12 hours);
+        DeezHook hook = doLaunch();
+        PoolKey memory key = poolKey(hook);
+        assertTrue(rewards.isExcluded(address(launcher)));
+        assertEq(token.balanceOf(address(launcher)), 0);
+
+        Swapper buyer = new Swapper(IPoolManager(address(manager)));
+        imd.mint(address(buyer), 100 ether);
+        buyer.swap(key, !tokenIsCurrency0, -100 ether);
+        assertEq(hook.pendingFeesOf(epoch), 2 ether);
+
+        vm.warp((epoch + 1) * 1 days + 1);
+        hook.harvest();
+        (uint128 pot,,,) = rewards.pots(epoch);
+        assertEq(pot, 2 ether);
+        assertGt(rewards.weightOf(address(launcher), epoch), rewards.eligibleSupplyAt(epoch), "it held most of the day");
+        assertEq(rewards.claimable(address(launcher), epoch), 0, "the launcher is owed nothing");
+        uint256 live = rewards.claimable(REQUESTER, epoch) + rewards.claimable(address(buyer), epoch)
+            + rewards.claimable(address(lock), epoch);
+        assertGe(live, uint256(pot) * 99 / 100, "the launch-day pot belongs to the launch-day holders");
+
+        // The requester's 10,000,000 $DEEZ, held for the second half of the day, claims its share; the
+        // launcher cannot claim at all.
+        uint256[] memory epochs = new uint256[](1);
+        epochs[0] = epoch;
+        vm.prank(REQUESTER);
+        uint256 paid = rewards.claim(REQUESTER, epochs);
+        assertGt(paid, 0);
+        assertEq(imd.balanceOf(REQUESTER), paid);
+        vm.prank(address(launcher));
+        vm.expectRevert(abi.encodeWithSelector(DeezRewards.Excluded.selector, address(launcher)));
+        rewards.claim(address(launcher), epochs);
+    }
+
     function test_launchedLiquidityCannotBeRemovedByAnyone() public {
         DeezHook hook = doLaunch();
         PoolKey memory key = poolKey(hook);
