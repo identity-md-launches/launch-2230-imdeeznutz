@@ -110,6 +110,8 @@ contract DeezLaunchLifecycleHandler is Test {
         assertEq(token.totalSupply(), 1_000_000_000 ether);
         assertLe(successfulLaunches, 1, "launch succeeded twice");
         assertEq(launcher.launched(), successfulLaunches == 1);
+        // The launcher holds supply it can never claim on, before and after launch.
+        assertTrue(rewards.isExcluded(address(launcher)), "launcher must never earn");
         if (successfulLaunches == 0) return;
         assertEq(address(launcher.hook()), predictedHook);
         assertEq(rewards.hook(), predictedHook);
