@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IMDeezNutz ($DEEZ) · 2% of every trade, to every holder</title>
+<meta name="description" content="IMDeezNutz ($DEEZ) on Ethereum, paired with $IMD on Uniswap v4. 2% of every trade is redistributed to all holders proportional to their balance.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --paper:#000;--ink:#fff;--dim:#9a9a9a;--faint:#666;--mute:#4a4a4a;--soft:#262626;--hover:#141414;--tile:#121214;
+    --ok:#3ecf7a;--alarm:#ff6b62;
+    --rule:1.5px solid var(--ink);
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --gutter:clamp(16px,4vw,34px);--label:11px;--track:0.06em;--pill-h:40px;
+  }
+  *{box-sizing:border-box}
+  html{margin:0;background:var(--paper);color:var(--ink)}
+  body{margin:0;font-family:var(--mono);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  a{color:inherit;text-decoration:none;border-bottom:1px solid var(--mute)}
+  a:hover{border-bottom-color:var(--ink)}
+  .wrap{width:100%;max-width:1080px;padding:0 var(--gutter)}
+  .label{font-size:var(--label);letter-spacing:var(--track);text-transform:uppercase;color:var(--dim)}
+  nav{width:100%;max-width:1080px;padding:18px var(--gutter);display:flex;align-items:center;gap:28px;border-bottom:1px solid var(--soft)}
+  nav .mark{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:0.02em;border:0}
+  nav .mark img{width:22px;height:22px;border-radius:5px}
+  nav ul{list-style:none;display:flex;gap:22px;margin:0 0 0 auto;padding:0}
+  nav li a{border:0;font-size:var(--label);letter-spacing:var(--track);text-transform:uppercase;color:var(--dim)}
+  nav li a:hover{color:var(--ink)}
+  .hero{padding:72px 0 48px;border-bottom:var(--rule)}
+  .hero h1{font-size:clamp(32px,6vw,60px);line-height:1.05;margin:14px 0 18px;font-weight:600;letter-spacing:-0.02em}
+  .hero p.lede{max-width:640px;color:var(--dim);font-size:16px;margin:0 0 28px}
+  .pills{display:flex;flex-wrap:wrap;gap:10px}
+  .pill{height:var(--pill-h);display:inline-flex;align-items:center;gap:8px;padding:0 16px;border:1.5px solid var(--ink);border-radius:999px;font-size:13px;background:transparent;color:var(--ink);cursor:pointer;font-family:inherit}
+  .pill.solid{background:var(--ink);color:var(--paper)}
+  .pill:hover{background:var(--hover)}
+  .pill.solid:hover{background:#e6e6e6}
+  .pill[disabled]{opacity:.45;cursor:default}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--soft);border:1px solid var(--soft);margin:0}
+  .stat{background:var(--paper);padding:20px 18px}
+  .stat b{display:block;font-size:24px;font-weight:600;margin-top:6px;letter-spacing:-0.01em}
+  .stat small{display:block;color:var(--faint);margin-top:4px;font-size:12px}
+  section{padding:56px 0;border-bottom:1px solid var(--soft)}
+  section h2{font-size:22px;font-weight:600;margin:8px 0 20px;letter-spacing:-0.01em}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:32px 48px}
+  .tile{background:var(--tile);border:1px solid var(--soft);border-radius:10px;padding:18px}
+  .tile h3{margin:0 0 8px;font-size:14px;font-weight:600}
+  .tile p{margin:0;color:var(--dim)}
+  code,.addr{font-family:var(--mono);font-size:13px}
+  pre{background:var(--tile);border:1px solid var(--soft);border-radius:10px;padding:16px;overflow:auto;color:var(--dim);font-size:13px;line-height:1.6;margin:0}
+  pre b{color:var(--ink);font-weight:500}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:12px 10px 12px 0;border-bottom:1px solid var(--soft);vertical-align:top}
+  th{font-size:var(--label);letter-spacing:var(--track);text-transform:uppercase;color:var(--dim);font-weight:500}
+  .addr-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+  .addr{color:var(--ink);word-break:break-all}
+  .addr.tba{color:var(--faint);font-style:italic}
+  .copy{height:28px;padding:0 10px;border:1px solid var(--mute);border-radius:999px;background:transparent;color:var(--dim);font:inherit;font-size:11px;letter-spacing:var(--track);text-transform:uppercase;cursor:pointer}
+  .copy:hover{color:var(--ink);border-color:var(--ink)}
+  .copy.done{color:var(--ok);border-color:var(--ok)}
+  .links a{border:0;color:var(--dim);margin-right:16px;font-size:12px;letter-spacing:var(--track);text-transform:uppercase}
+  .links a:hover{color:var(--ink)}
+  .links a.off{color:var(--mute);pointer-events:none}
+  .ok{color:var(--ok)} .alarm{color:var(--alarm)}
+  .claim{display:grid;grid-template-columns:1fr;gap:14px}
+  .claim .status{color:var(--dim);min-height:1.5em}
+  .claim .out{color:var(--ink)}
+  ol,ul.plain{color:var(--dim);padding-left:20px;margin:0}
+  li{margin:6px 0}
+  footer{width:100%;max-width:1080px;padding:28px var(--gutter) 48px;color:var(--faint);font-size:12px;display:flex;flex-wrap:wrap;gap:12px 28px;justify-content:space-between}
+  footer a{border:0;color:var(--dim)}
+  @media (max-width:640px){nav ul{display:none}}
+</style>
+</head>
+<body>
+<nav>
+  <a class="mark" href="#top"><img src="logo.svg" alt=""> IMDeezNutz</a>
+  <ul>
+    <li><a href="#mechanics">Mechanics</a></li>
+    <li><a href="#rewards">Rewards</a></li>
+    <li><a href="#claim">Claim</a></li>
+    <li><a href="#contracts">Contracts</a></li>
+    <li><a href="#liquidity">Liquidity</a></li>
+    <li><a id="link-imd" href="https://imd.fun">IMD</a></li>
+  </ul>
+</nav>
+
+<main class="wrap" id="top">
+  <header class="hero">
+    <div class="label">Ethereum mainnet · Uniswap v4 · paired with $IMD</div>
+    <h1>IMDeezNutz<br><span style="color:var(--dim)">$DEEZ</span></h1>
+    <p class="lede">2% of every trade is redistributed to all holders proportional to their balance. Larger holdings receive a larger share. Paid in $IMD, on chain, with no admin and no cutoff.</p>
+    <div class="pills">
+      <a class="pill solid" id="cta-uniswap" href="#contracts">Trade on Uniswap</a>
+      <a class="pill" href="#claim">Claim rewards</a>
+      <button class="pill" id="copy-hero" type="button">Copy contract address</button>
+    </div>
+  </header>
+
+  <div class="stats" style="margin-top:32px">
+    <div class="stat"><span class="label">Total supply</span><b>1,000,000,000</b><small>fixed · 18 decimals · nothing mints more</small></div>
+    <div class="stat"><span class="label">Trade fee to holders</span><b>2.00%</b><small>every buy and every sell, on the $IMD side</small></div>
+    <div class="stat"><span class="label">Rewards paid in</span><b>$IMD</b><small>the main ecosystem token</small></div>
+    <div class="stat"><span class="label">Admin keys</span><b>None</b><small>no owner, no pause, no upgrade</small></div>
+  </div>
+
+  <section id="mechanics">
+    <div class="label">01 · Mechanics</div>
+    <h2>The flywheel</h2>
+    <div class="grid">
+      <div class="tile"><h3>1. Trade</h3><p>Every swap in the $DEEZ/$IMD Uniswap v4 pool passes through the DEEZ hook. The hook takes exactly 2% of the $IMD side: from what you pay on a buy, from what you receive on a sell. The $DEEZ token itself is a plain ERC-20 with no transfer tax.</p></div>
+      <div class="tile"><h3>2. Accumulate</h3><p>The fee is held inside the PoolManager as an ERC-6909 claim, recorded against the UTC day it was traded in. Anyone can call <code>harvest()</code> on the hook to move the accumulated $IMD into the rewards contract; each day's fees land in that day's pot, whenever the harvest happens.</p></div>
+      <div class="tile"><h3>3. Weigh</h3><p>At the end of each UTC day the token's own balance history fixes each wallet's average balance over the day. The pool, the burn address and the protocol contracts are excluded; every other wallet counts, with no top-N cutoff.</p></div>
+      <div class="tile"><h3>4. Claim</h3><p>Your share of a day's pot is <code>pot × your average balance ÷ eligible supply</code>. You claim your own share from your own wallet; the $IMD goes to you. A claim harvests the day's still-pending fees first, so you are paid your share of the whole day whenever you claim. Shares unclaimed for 90 days are recycled into the current pot.</p></div>
+    </div>
+  </section>
+
+  <section id="rewards">
+    <div class="label">02 · Rewards</div>
+    <h2>The math, verifiable on chain</h2>
+    <div class="grid">
+      <div>
+        <pre><b>epoch</b>            = floor(timestamp / 86400)
+<b>avg(who, e)</b>      = average balance of <i>who</i> over day e   <i>// from the token's own history</i>
+<b>eligible(e)</b>      = totalSupply
+                   − avg(PoolManager, e)
+                   − avg(0x…dEaD, e)
+                   − avg(hook, e)
+                   − avg(rewards, e)
+<b>share(you, e)</b>    = pot(e) · avg(you, e) / eligible(e)</pre>
+      </div>
+      <div>
+        <p style="color:var(--dim);margin:0 0 14px">Every number is a public read: <code>avg</code> is <code>DeezRewards.weightOf(who, e)</code> (from <code>DeezToken.getCumulativeBalanceOf</code>), <code>pot(e)</code> is <code>DeezRewards.pots(e)</code>, and <code>DeezRewards.claimable(you, e)</code> returns the share directly. Fees are credited to the day they were traded in, and a wallet that holds for one block of a day earns one block's worth of that day.</p>
+        <table>
+          <tr><th>Fee</th><td>2.00% of the $IMD side of every swap (hook constant, not changeable)</td></tr>
+          <tr><th>Epoch</th><td>1 day (UTC)</td></tr>
+          <tr><th>Claim window</th><td>90 epochs, then the remainder is recycled to current holders</td></tr>
+          <tr><th>Excluded</th><td>PoolManager (the pool), 0x…dEaD, the hook, the rewards contract</td></tr>
+          <tr><th>Who can trigger</th><td>Anyone: <code>harvest()</code>, <code>harvestEpochs(epochs)</code>, <code>accrue()</code>, <code>recycle(epoch)</code>. The holder itself: <code>claim(holder, epochs)</code></td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="claim">
+    <div class="label">03 · Claim</div>
+    <h2>Claim your $IMD</h2>
+    <div class="grid">
+      <div class="claim">
+        <div class="pills">
+          <button class="pill solid" id="btn-connect" type="button">Connect wallet</button>
+          <button class="pill" id="btn-scan" type="button" disabled>Check claimable</button>
+          <button class="pill" id="btn-claim" type="button" disabled>Claim</button>
+          <button class="pill" id="btn-harvest" type="button" disabled>Harvest fees</button>
+        </div>
+        <div class="status" id="claim-status">Connect a wallet on Ethereum mainnet to check the last 90 epochs.</div>
+        <div class="out" id="claim-out"></div>
+      </div>
+      <div>
+        <h3 style="margin:0 0 8px;font-size:14px">Without this page</h3>
+        <ol>
+          <li>Open the rewards contract on Etherscan and read <code>currentEpoch()</code>.</li>
+          <li>For any ended epoch, read <code>claimable(yourAddress, epoch)</code>.</li>
+          <li>Write <code>claim(yourAddress, [epochs…])</code> from that same wallet; the $IMD is sent to <code>yourAddress</code>.</li>
+          <li>No need to harvest first: <code>claimable</code> already counts the day's fees still held by the hook, and <code>claim</code> harvests them before paying. <code>harvest()</code> on the hook remains open to anyone who wants to move today's and yesterday's fees into their pots early.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section id="contracts">
+    <div class="label">04 · Contracts</div>
+    <h2>Addresses</h2>
+    <table id="addr-table">
+      <tr><th>$DEEZ token</th><td><div class="addr-row"><span class="addr" data-addr="token"></span><button class="copy" data-copy="token" type="button">Copy</button></div></td></tr>
+      <tr><th>Fee hook</th><td><div class="addr-row"><span class="addr" data-addr="hook"></span><button class="copy" data-copy="hook" type="button">Copy</button></div></td></tr>
+      <tr><th>Rewards distributor</th><td><div class="addr-row"><span class="addr" data-addr="rewards"></span><button class="copy" data-copy="rewards" type="button">Copy</button></div></td></tr>
+      <tr><th>Liquidity lock</th><td><div class="addr-row"><span class="addr" data-addr="liquidityLock"></span><button class="copy" data-copy="liquidityLock" type="button">Copy</button></div></td></tr>
+      <tr><th>$IMD (pair)</th><td><div class="addr-row"><span class="addr" data-addr="imd"></span><button class="copy" data-copy="imd" type="button">Copy</button></div></td></tr>
+      <tr><th>Uniswap v4 pool id</th><td><div class="addr-row"><span class="addr" data-addr="poolId"></span><button class="copy" data-copy="poolId" type="button">Copy</button></div></td></tr>
+      <tr><th>Launcher</th><td><div class="addr-row"><span class="addr" data-addr="launcher"></span><button class="copy" data-copy="launcher" type="button">Copy</button></div></td></tr>
+      <tr><th>Deployment transaction</th><td><div class="addr-row"><span class="addr" data-addr="deployTx"></span></div></td></tr>
+      <tr><th>Launch transaction</th><td><div class="addr-row"><span class="addr" data-addr="launchTx"></span></div></td></tr>
+    </table>
+    <div class="links" style="margin-top:18px" id="ext-links">
+      <a id="l-uniswap" href="#">Uniswap pool ↗</a>
+      <a id="l-etherscan" href="#">Etherscan ↗</a>
+      <a id="l-blockscout" href="#">Blockscout ↗</a>
+      <a id="l-dexscreener" href="#">DexScreener ↗</a>
+      <a id="l-rewards-scan" href="#">Rewards on Etherscan ↗</a>
+    </div>
+    <p style="color:var(--dim);margin:22px 0 0">Pool: $DEEZ / $IMD on Uniswap v4, LP fee 1.25%, tick spacing 60, opened by <code>DeezLaunch.launch</code> at 2,500 $IMD for the whole supply. The hook takes its 2% on top of the LP fee and has no liquidity callbacks. The LP fee accrues to the permanently locked position, so it compounds into the pool and nobody can ever collect it.</p>
+  </section>
+
+  <section id="liquidity">
+    <div class="label">05 · Supply &amp; liquidity</div>
+    <h2>Where the supply went</h2>
+    <table>
+      <tr><th>98%</th><td>980,000,000 $DEEZ sent to <code>DeezLiquidityLock</code> and locked single-sided just above the opening price, in the launch transaction. The lock owns the position; it has no remove function and no owner.</td></tr>
+      <tr><th>1%</th><td>10,000,000 $DEEZ of the requester's 2% sent to <code>DeezLiquidityLock</code> and locked the same way, in the same transaction.</td></tr>
+      <tr><th>1%</th><td>10,000,000 $DEEZ, the rest of the requester's 2%, transferred to the requester wallet in the same transaction.</td></tr>
+    </table>
+    <p style="color:var(--dim);margin:18px 0 0">Circulating supply is everything outside the pool and the lock. Tokens inside the pool earn nothing; every other wallet earns in proportion to its balance. The lock's status (<code>totalLocked0</code>, <code>totalLocked1</code>) is public on the lock contract.</p>
+  </section>
+</main>
+
+<footer>
+  <span>IMDeezNutz · $DEEZ · no admin keys, no promises, no financial advice.</span>
+  <span><a id="f-imd" href="https://imd.fun">imd.fun</a> · <a id="f-docs" href="https://imd.fun/docs/">Docs</a> · <a id="f-tg" href="https://imd.fun/telegram/">Telegram</a> · <a href="https://github.com/">Source</a></span>
+</footer>
+
+<script src="deez.config.js"></script>
+<script>
+(function(){
+  const C = window.DEEZ || {};
+  const $ = (s) => document.querySelector(s);
+  const tba = "announced at launch";
+  // addresses
+  document.querySelectorAll("[data-addr]").forEach(el => {
+    const v = C[el.dataset.addr];
+    if (v) { el.textContent = v; } else { el.textContent = tba; el.classList.add("tba"); }
+  });
+  document.querySelectorAll("[data-copy]").forEach(btn => {
+    const v = C[btn.dataset.copy];
+    if (!v) { btn.disabled = true; btn.style.opacity = .35; return; }
+    btn.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(v); btn.textContent = "Copied"; btn.classList.add("done"); setTimeout(()=>{btn.textContent="Copy";btn.classList.remove("done");}, 1500); } catch(e) {}
+    });
+  });
+  $("#copy-hero").addEventListener("click", async () => {
+    if (!C.token) { $("#copy-hero").textContent = "Contract address: " + tba; return; }
+    await navigator.clipboard.writeText(C.token); $("#copy-hero").textContent = "Copied " + C.token.slice(0,6) + "…" + C.token.slice(-4);
+  });
+  // links
+  const L = C.links || {};
+  const setLink = (id, href) => { const a = $(id); if (href) a.href = href; else a.classList.add("off"); };
+  setLink("#l-uniswap", L.uniswap || (C.poolId ? "https://app.uniswap.org/explore/pools/ethereum/" + C.poolId : ""));
+  setLink("#l-etherscan", C.token ? "https://etherscan.io/token/" + C.token : "");
+  setLink("#l-blockscout", C.token ? "https://eth.blockscout.com/token/" + C.token : "");
+  setLink("#l-dexscreener", L.dexscreener || (C.poolId ? "https://dexscreener.com/ethereum/" + C.poolId : ""));
+  setLink("#l-rewards-scan", C.rewards ? "https://etherscan.io/address/" + C.rewards + "#readContract" : "");
+  if (L.uniswap || C.poolId) $("#cta-uniswap").href = L.uniswap || ("https://app.uniswap.org/explore/pools/ethereum/" + C.poolId);
+  if (L.imd) { $("#link-imd").href = L.imd; $("#f-imd").href = L.imd; }
+  if (L.docs) $("#f-docs").href = L.docs;
+  if (L.telegram) $("#f-tg").href = L.telegram;
+
+  // ---- minimal ABI helpers (no library): selectors precomputed with `cast sig`
+  const SEL = {
+    currentEpoch: "0x76671808",             // currentEpoch()
+    claimable: "0x60efe334",                // claimable(address,uint256)
+    claim: "0x45718278",                    // claim(address,uint256[])
+    pendingFees: "0x224438d1",              // pendingFees()
+    harvest: "0x4641257d",                  // harvest()
+  };
+  const pad = (hex) => hex.replace(/^0x/, "").padStart(64, "0");
+  const encAddr = (a) => pad(a.toLowerCase());
+  const encUint = (n) => pad(BigInt(n).toString(16));
+  const encClaim = (account, epochs) => SEL.claim + encAddr(account) + encUint(64) + encUint(epochs.length) + epochs.map(encUint).join("");
+  const status = (t, cls) => { const el = $("#claim-status"); el.textContent = t; el.className = "status " + (cls||""); };
+  const out = (t) => { $("#claim-out").textContent = t; };
+  let account = null, found = [], total = 0n;
+  const eth = () => window.ethereum;
+  const call = async (to, data) => eth().request({ method: "eth_call", params: [{ to, data }, "latest"] });
+  const fmt = (wei) => { const s = (wei / 10n**14n).toString().padStart(5, "0"); return s.slice(0, -4) + "." + s.slice(-4); };
+
+  $("#btn-connect").addEventListener("click", async () => {
+    if (!eth()) return status("No wallet found. Install a wallet, or claim through Etherscan as described on the right.", "alarm");
+    if (!C.rewards) return status("Rewards contract address not published yet.", "alarm");
+    try {
+      const accs = await eth().request({ method: "eth_requestAccounts" });
+      account = accs[0];
+      const chain = await eth().request({ method: "eth_chainId" });
+      if (parseInt(chain, 16) !== (C.chainId || 1)) return status("Switch your wallet to Ethereum mainnet.", "alarm");
+      status("Connected " + account.slice(0, 6) + "…" + account.slice(-4) + ". Check what is claimable.");
+      $("#btn-scan").disabled = false; $("#btn-harvest").disabled = !C.hook;
+    } catch (e) { status("Connection refused.", "alarm"); }
+  });
+
+  $("#btn-scan").addEventListener("click", async () => {
+    try {
+      status("Reading epochs…"); found = []; total = 0n;
+      const cur = BigInt(await call(C.rewards, SEL.currentEpoch));
+      const first = cur > 90n ? cur - 90n : 0n;
+      for (let e = cur - 1n; e >= first; e--) {
+        const r = BigInt(await call(C.rewards, SEL.claimable + encAddr(account) + encUint(e)));
+        if (r > 0n) { found.push(e); total += r; }
+      }
+      if (!found.length) return status("Nothing claimable in the last 90 epochs. Hold $DEEZ through a day's end, then come back.", "");
+      status(found.length + " epoch(s) claimable.", "ok");
+      out("Claimable: " + fmt(total) + " IMD across epochs " + found.slice().reverse().join(", "));
+      $("#btn-claim").disabled = false;
+    } catch (e) { status("Read failed: " + (e.message || e), "alarm"); }
+  });
+
+  $("#btn-claim").addEventListener("click", async () => {
+    try {
+      status("Confirm the claim in your wallet…");
+      const tx = await eth().request({ method: "eth_sendTransaction", params: [{ from: account, to: C.rewards, data: encClaim(account, found) }] });
+      status("Claim sent: " + tx, "ok"); $("#btn-claim").disabled = true;
+    } catch (e) { status("Claim failed: " + (e.message || e), "alarm"); }
+  });
+
+  $("#btn-harvest").addEventListener("click", async () => {
+    try {
+      const pending = BigInt(await call(C.hook, SEL.pendingFees));
+      if (pending === 0n) return status("No fees pending on the hook right now.", "");
+      status("Harvesting " + fmt(pending) + " IMD into the current epoch…");
+      const tx = await eth().request({ method: "eth_sendTransaction", params: [{ from: account, to: C.hook, data: SEL.harvest }] });
+      status("Harvest sent: " + tx, "ok");
+    } catch (e) { status("Harvest failed: " + (e.message || e), "alarm"); }
+  });
+})();
+</script>
+</body>
+</html>

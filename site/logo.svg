@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="IMDeezNutz mark">
+  <rect width="512" height="512" rx="96" fill="#000"/>
+  <rect x="24" y="24" width="464" height="464" rx="80" fill="none" stroke="#262626" stroke-width="3"/>
+  <!-- the flywheel: a ring that returns to every holder -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#fff" stroke-width="22" stroke-dasharray="660 282" stroke-linecap="round" transform="rotate(-70 256 256)"/>
+  <!-- the 2% share, lit -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#3ecf7a" stroke-width="22" stroke-dasharray="19 923" stroke-linecap="round" transform="rotate(-88 256 256)"/>
+  <!-- D monogram -->
+  <path d="M196 170h58c58 0 98 36 98 86s-40 86-98 86h-58zm34 30v112h24c40 0 64-22 64-56s-24-56-64-56z" fill="#fff"/>
+</svg>
