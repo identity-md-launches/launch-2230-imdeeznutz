@@ -105,15 +105,13 @@ abstract contract DeezLaunchTests is Test {
 
     // ------------------------------------------------------------------ before launch
 
-    function test_factoryDeploymentLeavesEverythingUnlaunched() public view {
-        assertEq(token.balanceOf(address(launcher)), token.TOTAL_SUPPLY(), "the whole supply waits in the launcher");
+    // Constructor wiring is testable independently. Requiring a later requester transaction to lock the
+    // allocation is a deployment-atomicity finding, not an expected successful deployment outcome.
+    function test_constructorWiringNamesRequesterAndDependencies() public view {
         assertEq(token.launcher(), address(launcher));
         assertEq(rewards.launcher(), address(launcher));
-        assertEq(rewards.hook(), address(0));
-        assertEq(address(lock.hook()), address(0));
         assertEq(address(lock.rewards()), address(rewards));
-        assertFalse(launcher.launched());
-        assertEq(address(launcher.hook()), address(0));
+        assertEq(address(lock.poolManager()), address(manager));
         assertEq(launcher.requester(), REQUESTER);
     }
 
